@@ -102,6 +102,18 @@ function App() {
   const [animatingOutIds, setAnimatingOutIds] = useState(new Set());
   const [toast, setToast] = useState({ show: false, message: '', success: false });
 
+  // Custom Notes State
+  const [notes, setNotes] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('dsa-notes') || '{}');
+    } catch (e) {
+      return {};
+    }
+  });
+  const [activeNoteKey, setActiveNoteKey] = useState(null);
+  const [activeNoteTitle, setActiveNoteTitle] = useState('');
+  const [noteText, setNoteText] = useState('');
+
   // dismiss toast after 1.8s
   useEffect(() => {
     if (toast.show) {
@@ -111,6 +123,20 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [toast.show]);
+
+  // Keyboard shortcut Ctrl+S / Cmd+S to save notes
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        if (activeNoteKey !== null) {
+          e.preventDefault();
+          saveNote();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeNoteKey, noteText]);
 
   const showToast = (message, success = false) => {
     setToast({ show: true, message, success });
@@ -260,6 +286,37 @@ function App() {
       ...prev,
       [topicName]: !prev[topicName]
     }));
+  };
+
+  // Custom Notes Handlers
+  const openNote = (key, title) => {
+    setActiveNoteKey(key);
+    setActiveNoteTitle(title);
+    setNoteText(notes[key] || '');
+  };
+
+  const saveNote = () => {
+    if (!activeNoteKey) return;
+    const newNotes = { ...notes };
+    if (noteText.trim()) {
+      newNotes[activeNoteKey] = noteText;
+    } else {
+      delete newNotes[activeNoteKey];
+    }
+    setNotes(newNotes);
+    localStorage.setItem('dsa-notes', JSON.stringify(newNotes));
+    setActiveNoteKey(null);
+    showToast('Note saved successfully!');
+  };
+
+  const deleteNote = () => {
+    if (!activeNoteKey) return;
+    const newNotes = { ...notes };
+    delete newNotes[activeNoteKey];
+    setNotes(newNotes);
+    localStorage.setItem('dsa-notes', JSON.stringify(newNotes));
+    setActiveNoteKey(null);
+    showToast('Note deleted');
   };
 
   // Group all questions by normalized title for statistics calculation
@@ -686,6 +743,15 @@ function App() {
                         </div>
                         <div className="q-actions">
                           <button
+                            className={`q-notes-btn ${notes[k] ? 'has-notes' : ''}`}
+                            onClick={() => openNote(k, p.problem)}
+                            title={notes[k] ? "Edit notes (notes present)" : "Add notes"}
+                          >
+                            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </button>
+                          <button
                             className={`q-revised-btn ${isRevised ? 'active' : ''}`}
                             onClick={() => toggleRevised(k)}
                             title="Mark for revision"
@@ -833,6 +899,15 @@ function App() {
                         </div>
                         <div className="q-actions">
                           <button 
+                            className={`q-notes-btn ${notes[q.key] ? 'has-notes' : ''}`}
+                            onClick={() => openNote(q.key, q.problem)}
+                            title={notes[q.key] ? "Edit notes (notes present)" : "Add notes"}
+                          >
+                            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                          </button>
+                          <button 
                             className={`q-revised-btn ${isRevised ? 'active' : ''}`} 
                             onClick={() => toggleRevised(q.key)} 
                             title="Mark for revision"
@@ -877,6 +952,34 @@ function App() {
         )}
       </main>
       </>
+      )}
+
+      {/* Notes Modal Overlay */}
+      {activeNoteKey !== null && (
+        <div className="notes-overlay" onClick={saveNote}>
+          <div className="notes-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="notes-header">
+              <h3 className="notes-title">Notes: {activeNoteTitle}</h3>
+              <button className="notes-close" onClick={saveNote}>✕</button>
+            </div>
+            <textarea
+              className="notes-textarea"
+              placeholder="Jot down notes, solution steps, optimal complexities, or code hints here..."
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              autoFocus
+            />
+            <div className="notes-footer">
+              <span className="notes-hint">Ctrl+S / click outside to autosave</span>
+              <div className="notes-actions">
+                {notes[activeNoteKey] && (
+                  <button className="notes-delete-btn" onClick={deleteNote}>Delete</button>
+                )}
+                <button className="notes-save-btn" onClick={saveNote}>Save & Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <footer className="colophon">
