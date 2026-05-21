@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
+import confetti from 'canvas-confetti';
 import { ALL_QUESTIONS } from './data/questions.js';
+import { DSA_PATTERNS } from './data/patterns.js';
 
 // --- SHEET MAP ---
 const SHEET_KEY = {
@@ -7,6 +9,47 @@ const SHEET_KEY = {
   'Apna College (AK)': 'ak',
   'Arsh Goyal 45 Days': 'arsh',
 };
+
+// --- TOPIC NORMALIZATION MAP ---
+// Merges variant/duplicate topic names across sheets into one canonical name
+const TOPIC_MAP = {
+  'Array':                  'Arrays',
+  'Arrays':                 'Arrays',
+  '2D Arrays':              'Arrays',
+  'Matrix':                 'Arrays',
+  'Matrix Problems':        'Arrays',
+  'String':                 'Strings',
+  'Strings':                'Strings',
+  'Linked List':            'Linked List',
+  'LinkedList':             'Linked List',
+  'Stacks & Queues':        'Stacks & Queues',
+  'Stacks and Queues':      'Stacks & Queues',
+  'Graph':                  'Graphs',
+  'Graphs':                 'Graphs',
+  'GRAPHS':                 'Graphs',
+  'Tree':                   'Trees',
+  'Trees':                  'Trees',
+  'Binary Trees':           'Trees',
+  'Binary Search Trees':    'Trees',
+  'Trie':                   'Tries',
+  'Tries':                  'Tries',
+  'Dynamic Programming':    'Dynamic Programming',
+  'DP':                     'Dynamic Programming',
+  'Backtracking':           'Backtracking',
+  'BackTracking':           'Backtracking',
+  'Searching & Sorting':    'Searching & Sorting',
+  'Sorting and Searching':  'Searching & Sorting',
+  'Heap':                   'Heaps',
+  'Heaps & Hashing':        'Heaps',
+  'Heaps / PQs':            'Heaps',
+  'Bit Manipulation':       'Bit Manipulation',
+  'Greedy':                 'Greedy',
+  'Two Pointer Approach':   'Two Pointer',
+  'Mathematical Problems':  'Math',
+  'Segment Trees':          'Segment Trees',
+};
+
+const normalizeTopic = (topic) => TOPIC_MAP[topic] || topic;
 
 function App() {
   // Load initial progress from localStorage with automatic migration from ID keys to normalized title keys
@@ -91,8 +134,63 @@ function App() {
     localStorage.setItem('dsa-progress', JSON.stringify(data));
   };
 
+  const fireConfetti = () => {
+    const colors = ['#f5c842', '#e84393', '#4f8ef7', '#3ecf8e', '#ff6b35', '#a855f7', '#ffffff'];
+    const duration = 1500;
+    const animationEnd = Date.now() + duration;
+
+    // Central cannon burst — fills the whole screen immediately
+    confetti({
+      particleCount: 120,
+      spread: 180,
+      origin: { x: 0.5, y: 0.55 },
+      colors,
+      startVelocity: 50,
+      gravity: 0.85,
+      decay: 0.92,
+      ticks: 120,
+      zIndex: 9999,
+    });
+
+    // Continuous side cannons for the full duration
+    const frame = () => {
+      if (Date.now() > animationEnd) return;
+
+      confetti({
+        particleCount: 4,
+        angle: 65,
+        spread: 52,
+        origin: { x: 0, y: 0.75 },
+        colors,
+        startVelocity: 45,
+        gravity: 0.8,
+        decay: 0.94,
+        ticks: 150,
+        zIndex: 9999,
+      });
+      confetti({
+        particleCount: 4,
+        angle: 115,
+        spread: 52,
+        origin: { x: 1, y: 0.75 },
+        colors,
+        startVelocity: 45,
+        gravity: 0.8,
+        decay: 0.94,
+        ticks: 150,
+        zIndex: 9999,
+      });
+
+      requestAnimationFrame(frame);
+    };
+
+    frame();
+  };
+
   const toggleDone = (key) => {
     const isDone = !progress[key]?.done;
+
+    if (isDone) fireConfetti();
     
     if (pendingOnly && isDone) {
       setAnimatingOutIds(prev => {
@@ -192,11 +290,19 @@ function App() {
     const overallDone = uniqueQuestions.filter(q => q.done).length;
     const overallTotal = uniqueQuestions.length;
 
+    // DSA Pattern stats
+    const allPatternProblems = DSA_PATTERNS.flatMap(pat =>
+      pat.problems.map(p => p.problem.toLowerCase().replace(/[^a-z0-9]/g, ''))
+    );
+    const patternTotal = allPatternProblems.length;
+    const patternDone = allPatternProblems.filter(k => !!progress[k]?.done).length;
+
     return {
-      all: { done: overallDone, total: overallTotal },
+      all: { done: overallDone + patternDone, total: overallTotal + patternTotal },
       lb: { done: lbDone, total: lbTotal },
       ak: { done: akDone, total: akTotal },
       arsh: { done: arshDone, total: arshTotal },
+      patterns: { done: patternDone, total: patternTotal },
     };
   }, [progress]);
 
@@ -284,7 +390,7 @@ function App() {
         key: norm,
         id: base.id,
         problem: base.problem,
-        topic: base.topic,
+        topic: normalizeTopic(base.topic),
         difficulty,
         companies: mergedCompanies,
         sheets,
@@ -295,7 +401,7 @@ function App() {
     return result;
   }, [sheet, search, diff]);
 
-  // Unique topics list for the current filtered list
+  // Unique topics list for the current filtered list (already normalized via processedQuestions)
   const uniqueTopics = useMemo(() => {
     const seen = new Set();
     const list = [];
@@ -305,7 +411,7 @@ function App() {
         list.push(q.topic);
       }
     });
-    return list;
+    return list.sort();
   }, [processedQuestions]);
 
   // Compute stats per topic dynamically based on active sheet deduplicated list
@@ -327,10 +433,11 @@ function App() {
     const byTopic = {};
     groups.forEach((items, norm) => {
       const base = items[0];
-      if (!byTopic[base.topic]) {
-        byTopic[base.topic] = [];
+      const canonicalTopic = normalizeTopic(base.topic);
+      if (!byTopic[canonicalTopic]) {
+        byTopic[canonicalTopic] = [];
       }
-      byTopic[base.topic].push({
+      byTopic[canonicalTopic].push({
         key: norm,
         done: !!progress[norm]?.done
       });
@@ -358,18 +465,19 @@ function App() {
       const isRevised = !!progress[q.key]?.revised;
       if (revisedOnly && !isRevised) return false;
 
-      if (topic && q.topic !== topic) return false;
+      if (topic && normalizeTopic(q.topic) !== topic) return false;
       
       return true;
     });
   }, [processedQuestions, progress, pendingOnly, revisedOnly, topic, animatingOutIds]);
 
-  // Group visible questions by topic
+  // Group visible questions by normalized topic
   const groupedQuestions = useMemo(() => {
     const byTopic = {};
     visibleQuestions.forEach(q => {
-      if (!byTopic[q.topic]) byTopic[q.topic] = [];
-      byTopic[q.topic].push(q);
+      const t = normalizeTopic(q.topic);
+      if (!byTopic[t]) byTopic[t] = [];
+      byTopic[t].push(q);
     });
     return byTopic;
   }, [visibleQuestions]);
@@ -383,6 +491,29 @@ function App() {
     setRevisedOnly(!revisedOnly);
     if (!revisedOnly) setPendingOnly(false);
   };
+
+  const collapseAll = () => {
+    const keys = sheet === 'patterns'
+      ? DSA_PATTERNS.map(p => p.pattern.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      : Object.keys(groupedQuestions);
+    const allCollapsed = keys.every(k => collapsedTopics[k]);
+    if (allCollapsed) {
+      // Expand all
+      setCollapsedTopics({});
+    } else {
+      // Collapse all
+      const next = {};
+      keys.forEach(k => { next[k] = true; });
+      setCollapsedTopics(next);
+    }
+  };
+
+  const allCollapsed = (() => {
+    const keys = sheet === 'patterns'
+      ? DSA_PATTERNS.map(p => p.pattern.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      : Object.keys(groupedQuestions);
+    return keys.length > 0 && keys.every(k => collapsedTopics[k]);
+  })();
 
   return (
     <>
@@ -434,6 +565,14 @@ function App() {
           >
             Arsh Goyal · 45d
           </button>
+          <button 
+            className={`tab-btn ${sheet === 'patterns' ? 'active' : ''}`} 
+            data-sheet="patterns" 
+            data-vol="04" 
+            onClick={() => handleSheetChange('patterns')}
+          >
+            DSA Patterns
+          </button>
         </nav>
       </header>
 
@@ -479,9 +618,95 @@ function App() {
               <div className="progress-fill" style={{ width: `${(stats.arsh.done / stats.arsh.total) * 100}%` }}></div>
             </div>
           </div>
+          <div className="stat-card" data-sheet="patterns">
+            <div className="stat-label">DSA Patterns</div>
+            <div className="stat-numbers">
+              <div className="stat-done">{stats.patterns.done}</div>
+              <div className="stat-total">/ {stats.patterns.total}</div>
+            </div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${stats.patterns.total ? (stats.patterns.done / stats.patterns.total) * 100 : 0}%` }}></div>
+            </div>
+          </div>
         </div>
       </section>
 
+      {sheet === 'patterns' ? (
+        <main className="main">
+          <div className="patterns-intro">
+            <p>22 essential patterns from <em>Mastering DSA Patterns</em> — recognise the pattern, solve any problem.</p>
+            <button className="filter-btn collapse-btn" onClick={collapseAll}>
+              {allCollapsed ? '↕ Expand All' : '↕ Collapse All'}
+            </button>
+          </div>
+          {DSA_PATTERNS.map((pat) => {
+            const patKey = pat.pattern.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const isCollapsed = !!collapsedTopics[patKey];
+            const donePat = pat.problems.filter(p => {
+              const k = p.problem.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return !!progress[k]?.done;
+            }).length;
+            const pct = Math.round((donePat / pat.problems.length) * 100);
+            return (
+              <div key={patKey} className="topic-section">
+                <button
+                  className={`topic-header ${isCollapsed ? 'collapsed' : ''}`}
+                  onClick={() => toggleTopicCollapse(patKey)}
+                >
+                  <span className="topic-name">{pat.pattern}</span>
+                  <span className="topic-progress">{donePat}/{pat.problems.length}</span>
+                  <div className="topic-mini-bar">
+                    <div className="topic-mini-fill" style={{ width: `${pct}%` }}></div>
+                  </div>
+                  <svg className="topic-toggle" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                <div className={`topic-body ${isCollapsed ? 'collapsed' : ''}`}>
+                  <div className="pattern-desc">{pat.description}</div>
+                  {pat.problems.map((p) => {
+                    const k = p.problem.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const isDone = !!progress[k]?.done;
+                    const isRevised = !!progress[k]?.revised;
+                    const isLC = p.link.includes('leetcode.com/problems');
+                    return (
+                      <div key={k} className={`q-card ${isDone ? 'done' : ''}`}>
+                        <div className="q-check" onClick={() => toggleDone(k)} title="Mark as done">
+                          <svg width="10" height="10" fill="none" stroke="#0a0e1a" strokeWidth="3" viewBox="0 0 24 24">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        </div>
+                        <div className="q-content">
+                          <div className="q-name">{p.problem}</div>
+                          <div className="q-meta">
+                            {p.difficulty && (
+                              <span className={`q-diff ${p.difficulty.toLowerCase()}`}>{p.difficulty}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="q-actions">
+                          <button
+                            className={`q-revised-btn ${isRevised ? 'active' : ''}`}
+                            onClick={() => toggleRevised(k)}
+                            title="Mark for revision"
+                          >↺</button>
+                          <a href={p.link} target="_blank" rel="noopener noreferrer"
+                            className={`q-link ${isLC ? 'lc' : ''}`} title="Open on LeetCode">
+                            <svg width="13" height="13" viewBox="0 0 95 111" fill="currentColor">
+                              <path d="M68.8 57.5H34.3c-1.2 0-2.2 1-2.2 2.2v6.6c0 1.2 1 2.2 2.2 2.2h34.5c1.2 0 2.2-1 2.2-2.2v-6.6c0-1.2-1-2.2-2.2-2.2zm-5.4-40.7L44.5 36.6c-.9.9-.9 2.3 0 3.2l4.7 4.7c.9.9 2.3.9 3.2 0l18.9-18.9c.9-.9.9-2.3 0-3.2l-4.7-4.7c-.9-.8-2.3-.8-3.2.1z" />
+                            </svg>
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </main>
+      ) : (
+        <>
       <div className="controls">
         <div className="search-wrap">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
@@ -526,6 +751,9 @@ function App() {
           onClick={toggleRevisedFilter}
         >
           Revisit
+        </button>
+        <button className="filter-btn collapse-btn" onClick={collapseAll}>
+          {allCollapsed ? '↕ Expand All' : '↕ Collapse All'}
         </button>
         <span className="result-count">
           {visibleQuestions.length} questions
@@ -593,7 +821,7 @@ function App() {
                             )}
                             {sheet === 'all' && q.sheets.map(sc => (
                               <span key={sc} className={`sheet-badge ${sc}`}>
-                                {sc === 'lb' ? 'LB' : sc === 'ak' ? 'AK' : 'AG'}
+                                {sc === 'lb' ? 'LB' : sc === 'ak' ? 'AC' : 'AG'}
                               </span>
                             ))}
                             {q.companies && (
@@ -648,6 +876,8 @@ function App() {
           })
         )}
       </main>
+      </>
+      )}
 
       <footer className="colophon">
         <div>Set in <em>Instrument Serif</em> &amp; JetBrains Mono</div>

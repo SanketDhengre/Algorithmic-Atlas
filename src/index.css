@@ -13,6 +13,7 @@
   --c-lb:#7cc4ff;
   --c-ak:#c9a4ff;
   --c-arsh:#7ee0b8;
+  --c-patterns:#f5c842;
   --easy:#7ee0b8;
   --medium:#f0c674;
   --hard:#ff7a7a;
@@ -134,7 +135,7 @@ header{
   max-width:1320px;margin:0 auto;padding:36px 32px 18px;
 }
 .stats-row{
-  display:grid;grid-template-columns:repeat(4, 1fr);
+  display:grid;grid-template-columns:repeat(5, 1fr);
   border-top:1px solid var(--rule);
   border-left:1px solid var(--rule);
 }
@@ -156,6 +157,7 @@ header{
 .stat-card[data-sheet="lb"]::before{background:var(--c-lb)}
 .stat-card[data-sheet="ak"]::before{background:var(--c-ak)}
 .stat-card[data-sheet="arsh"]::before{background:var(--c-arsh)}
+.stat-card[data-sheet="patterns"]::before{background:var(--c-patterns)}
 
 .stat-label{
   font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;
@@ -176,6 +178,7 @@ header{
 .stat-card[data-sheet="lb"] .stat-done{color:var(--c-lb)}
 .stat-card[data-sheet="ak"] .stat-done{color:var(--c-ak)}
 .stat-card[data-sheet="arsh"] .stat-done{color:var(--c-arsh)}
+.stat-card[data-sheet="patterns"] .stat-done{color:var(--c-patterns)}
 .stat-total{
   font-family:var(--font-mono);font-size:12px;color:var(--paper-dim);
   letter-spacing:.04em;
@@ -190,6 +193,7 @@ header{
 .stat-card[data-sheet="lb"] .progress-fill{background:var(--c-lb)}
 .stat-card[data-sheet="ak"] .progress-fill{background:var(--c-ak)}
 .stat-card[data-sheet="arsh"] .progress-fill{background:var(--c-arsh)}
+.stat-card[data-sheet="patterns"] .progress-fill{background:var(--c-patterns)}
 
 /* ============ CONTROLS ============ */
 .controls{
@@ -406,18 +410,59 @@ header{
 ::-webkit-scrollbar-thumb:hover{background:var(--paper-dim)}
 
 /* ============ RESPONSIVE ============ */
-@media (max-width:1000px){
-  .stats-row{grid-template-columns:repeat(2, 1fr)}
+@media (max-width:1200px){
+  .stats-row{grid-template-columns:repeat(3, 1fr)}
   .title{font-size:clamp(44px,12vw,72px)}
   .title-meta{display:none}
 }
 @media (max-width:720px){
-  .masthead, .title-row, .controls, .sheet, .main, .colophon{padding-left:18px;padding-right:18px}
-  .tab-nav{padding:0 18px;overflow-x:auto}
-  .tab-btn{padding:12px 14px;font-size:9px}
-  .tab-btn::before{font-size:18px}
+  .masthead, .title-row, .controls, .sheet, .main, .colophon{padding-left:16px;padding-right:16px}
+  .tab-nav{padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tab-nav::-webkit-scrollbar{display:none}
+  .tab-btn{padding:11px 13px;font-size:9px;white-space:nowrap;flex-shrink:0}
+  .tab-btn::before{font-size:17px}
   .topic-body{grid-template-columns:1fr}
-  .stat-done{font-size:46px}
-  .topic-name{font-size:26px}
+  .stats-row{grid-template-columns:repeat(2, 1fr)}
+  .stat-done{font-size:40px}
+  .topic-name{font-size:24px}
   .search-input{font-size:16px}
+  .controls{gap:8px}
+  .select-filter{font-size:10px;padding:9px 26px 9px 10px}
+  .filter-btn{font-size:10px;padding:9px 10px}
+  .patterns-intro{padding:14px 16px;flex-direction:column;align-items:flex-start;gap:10px}
+  .title{font-size:clamp(36px,11vw,60px)}
+  .masthead{padding:14px 16px 10px}
+  .title-row{padding:10px 16px 14px}
+}
+@media (max-width:480px){
+  .stats-row{grid-template-columns:repeat(2, 1fr)}
+  .tab-btn{padding:10px 11px;font-size:8.5px}
+  .topic-name{font-size:20px}
+  .q-name{font-size:13px}
+  .colophon{flex-direction:column;gap:6px}
+  .controls{flex-wrap:wrap}
+}
+
+/* ============ DSA PATTERNS ============ */
+.patterns-intro{
+  max-width:1320px;margin:0 auto;
+  padding:16px 32px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+  color:var(--paper-dim);text-transform:uppercase;
+  border-bottom:1px dashed var(--rule);
+}
+.patterns-intro em{
+  font-family:var(--font-serif);font-style:italic;font-size:15px;
+  color:var(--paper);text-transform:none;letter-spacing:0;
+}
+.tab-btn.active[data-sheet="patterns"]{background:#f5c842;color:var(--ink)}
+.tab-btn.active[data-sheet="patterns"]::before{color:var(--ink)}
+.pattern-desc{
+  grid-column:1/-1;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
+  color:var(--paper-dim);text-transform:uppercase;
+  padding:10px 18px 14px;
+  border-right:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
 }
